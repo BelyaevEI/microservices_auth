@@ -70,7 +70,7 @@ func TestCreateUser(t *testing.T) {
 		}
 	)
 
-	defer t.Cleanup(mc.Finish)
+	t.Cleanup(mc.Finish)
 
 	tests := []struct {
 		name            string

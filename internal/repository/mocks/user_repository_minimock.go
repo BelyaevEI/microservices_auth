@@ -64,7 +64,7 @@ func NewUserRepositoryMock(t minimock.Tester) *UserRepositoryMock {
 	m.UpdateUserByIDMock = mUserRepositoryMockUpdateUserByID{mock: m}
 	m.UpdateUserByIDMock.callArgs = []*UserRepositoryMockUpdateUserByIDParams{}
 
-	// t.Cleanup(m.MinimockFinish)
+	t.Cleanup(m.MinimockFinish)
 
 	return m
 }

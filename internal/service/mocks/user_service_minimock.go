@@ -64,7 +64,7 @@ func NewUserServiceMock(t minimock.Tester) *UserServiceMock {
 	m.UpdateUserByIDMock = mUserServiceMockUpdateUserByID{mock: m}
 	m.UpdateUserByIDMock.callArgs = []*UserServiceMockUpdateUserByIDParams{}
 
-	// t.Cleanup(m.MinimockFinish)
+	t.Cleanup(m.MinimockFinish)
 
 	return m
 }

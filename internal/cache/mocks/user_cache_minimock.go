@@ -55,7 +55,7 @@ func NewUserCacheMock(t minimock.Tester) *UserCacheMock {
 	m.GetUserByIDMock = mUserCacheMockGetUserByID{mock: m}
 	m.GetUserByIDMock.callArgs = []*UserCacheMockGetUserByIDParams{}
 
-	// t.Cleanup(m.MinimockFinish)
+	t.Cleanup(m.MinimockFinish)
 
 	return m
 }
