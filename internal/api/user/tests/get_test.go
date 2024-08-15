@@ -70,8 +70,6 @@ func TestGetUser(t *testing.T) {
 		}
 	)
 
-	t.Cleanup(mc.Finish)
-
 	tests := []struct {
 		name            string
 		args            args

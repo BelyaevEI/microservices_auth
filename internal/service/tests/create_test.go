@@ -23,7 +23,7 @@ func TestCreateUser(t *testing.T) {
 
 	type userRepositoryMockFunc func(mc *minimock.Controller) repository.UserRepository
 	type cacheMockFunc func(mc *minimock.Controller) cache.UserCache
-	type txManagerMockFunc func(f func(context.Context) error, mc *minimock.Controller) db.TxManager
+	type txManagerMockFunc func(f func(_ context.Context) error, mc *minimock.Controller) db.TxManager
 
 	type args struct {
 		ctx         context.Context

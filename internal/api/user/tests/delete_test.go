@@ -39,8 +39,6 @@ func TestDeleteUser(t *testing.T) {
 		res = &emptypb.Empty{}
 	)
 
-	t.Cleanup(mc.Finish)
-
 	tests := []struct {
 		name            string
 		args            args
