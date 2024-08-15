@@ -12,7 +12,7 @@ import (
 	serviceMocks "github.com/BelyaevEI/microservices_auth/internal/service/mocks"
 	desc "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/gojuno/minimock"
+	"github.com/gojuno/minimock/v3"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -109,17 +109,17 @@ func TestGetUser(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			getServiceMock := tt.userServiceMock(mc)
+			getServiceMock := test.userServiceMock(mc)
 			api := userApi.NewImplementation(getServiceMock)
 
-			newID, err := api.GetUserByID(tt.args.ctx, tt.args.req)
-			require.Equal(t, tt.err, err)
-			require.Equal(t, tt.want, newID)
+			newID, err := api.GetUserByID(test.args.ctx, test.args.req)
+			require.Equal(t, test.err, err)
+			require.Equal(t, test.want, newID)
 		})
 	}
 

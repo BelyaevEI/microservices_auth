@@ -14,7 +14,7 @@ import (
 	"github.com/BelyaevEI/platform_common/pkg/db"
 	"github.com/BelyaevEI/platform_common/pkg/db/mocks"
 	"github.com/brianvoe/gofakeit/v6"
-	"github.com/gojuno/minimock"
+	"github.com/gojuno/minimock/v3"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,7 +58,8 @@ func TestCreateUser(t *testing.T) {
 			},
 		}
 	)
-	defer t.Cleanup(mc.Finish)
+
+	t.Cleanup(mc.Finish)
 
 	tests := []struct {
 		name               string
@@ -120,20 +121,20 @@ func TestCreateUser(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			userRepoMock := tt.userRepositoryMock(mc)
-			cacheMock := tt.cacheMock(mc)
-			txManagerMock := tt.txManagerMock(func(ctx context.Context) error {
+			userRepoMock := test.userRepositoryMock(mc)
+			cacheMock := test.cacheMock(mc)
+			txManagerMock := test.txManagerMock(func(ctx context.Context) error {
 				return nil
 			}, mc)
 			service := userService.NewService(userRepoMock, txManagerMock, cacheMock)
-			newID, err := service.CreateUser(tt.args.ctx, tt.args.userRepoReq)
-			require.Equal(t, tt.err, err)
-			require.Equal(t, tt.want, newID)
+			newID, err := service.CreateUser(test.args.ctx, test.args.userRepoReq)
+			require.Equal(t, test.err, err)
+			require.Equal(t, test.want, newID)
 		})
 	}
 
