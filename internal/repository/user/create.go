@@ -3,9 +3,9 @@ package user
 import (
 	"context"
 
-	"github.com/BelyaevEI/microservices_auth/internal/client/db"
 	"github.com/BelyaevEI/microservices_auth/internal/model"
 	"github.com/BelyaevEI/microservices_auth/internal/repository/user/converter"
+	"github.com/BelyaevEI/platform_common/pkg/db"
 	sq "github.com/Masterminds/squirrel"
 )
 

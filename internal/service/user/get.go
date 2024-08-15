@@ -8,9 +8,12 @@ import (
 
 func (s serv) GetUserByID(ctx context.Context, id int64) (*model.User, error) {
 
-	user, err := s.userRepository.GetUserByID(ctx, id)
+	user, err := s.cache.GetUserByID(ctx, id)
 	if err != nil {
-		return nil, err
+		user, err = s.userRepository.GetUserByID(ctx, id)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return user, nil

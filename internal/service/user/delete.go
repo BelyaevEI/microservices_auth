@@ -11,5 +11,10 @@ func (s serv) DeleteUserByID(ctx context.Context, id int64) error {
 		return err
 	}
 
+	err = s.cache.DeleteUserByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

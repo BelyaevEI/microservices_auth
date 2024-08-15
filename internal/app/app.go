@@ -6,9 +6,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/BelyaevEI/microservices_auth/internal/closer"
 	"github.com/BelyaevEI/microservices_auth/internal/config"
 	desc "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
+	"github.com/BelyaevEI/platform_common/pkg/closer"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

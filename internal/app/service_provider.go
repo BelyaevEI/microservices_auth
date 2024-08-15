@@ -5,22 +5,32 @@ import (
 	"log"
 
 	"github.com/BelyaevEI/microservices_auth/internal/api/user"
-	"github.com/BelyaevEI/microservices_auth/internal/client/db"
-	"github.com/BelyaevEI/microservices_auth/internal/client/db/pg"
-	"github.com/BelyaevEI/microservices_auth/internal/client/db/transaction"
-	"github.com/BelyaevEI/microservices_auth/internal/closer"
+	"github.com/BelyaevEI/microservices_auth/internal/cache"
+	"github.com/BelyaevEI/platform_common/pkg/cache/redis"
+	"github.com/BelyaevEI/platform_common/pkg/closer"
+	"github.com/BelyaevEI/platform_common/pkg/db"
+	"github.com/BelyaevEI/platform_common/pkg/db/pg"
+	"github.com/BelyaevEI/platform_common/pkg/db/transaction"
+
+	userCache "github.com/BelyaevEI/microservices_auth/internal/cache/user"
 	"github.com/BelyaevEI/microservices_auth/internal/config"
 	"github.com/BelyaevEI/microservices_auth/internal/repository"
 	userRepository "github.com/BelyaevEI/microservices_auth/internal/repository/user"
 	"github.com/BelyaevEI/microservices_auth/internal/service"
 	userService "github.com/BelyaevEI/microservices_auth/internal/service/user"
+	cacheClient "github.com/BelyaevEI/platform_common/pkg/cache"
+	redigo "github.com/gomodule/redigo/redis"
 )
 
 type serviceProvider struct {
-	pgConfig   config.PGConfig
-	grpcConfig config.GRPCConfig
+	pgConfig    config.PGConfig
+	grpcConfig  config.GRPCConfig
+	redisConfig config.RedisConfig
 
 	dbClient       db.Client
+	redisPool      *redigo.Pool
+	redisClient    cacheClient.Client
+	cache          cache.UserCache
 	txManager      db.TxManager
 	userRepository repository.UserRepository
 	userService    service.UserService
@@ -105,8 +115,51 @@ func (s *serviceProvider) UserService(ctx context.Context) service.UserService {
 		s.userService = userService.NewService(
 			s.UserRepository(ctx),
 			s.TxManager(ctx),
+			s.Cache(),
 		)
 	}
 
 	return s.userService
+}
+
+func (s *serviceProvider) RedisConfig() config.RedisConfig {
+	if s.redisConfig == nil {
+		cfg, err := config.NewRedisConfig()
+		if err != nil {
+			log.Fatalf("failed to get redis config: %s", err.Error())
+		}
+
+		s.redisConfig = cfg
+	}
+
+	return s.redisConfig
+}
+
+func (s *serviceProvider) RedisPool() *redigo.Pool {
+	if s.redisPool == nil {
+		s.redisPool = &redigo.Pool{
+			MaxIdle:     s.RedisConfig().MaxIdle(),
+			IdleTimeout: s.RedisConfig().IdleTimeout(),
+			DialContext: func(ctx context.Context) (redigo.Conn, error) {
+				return redigo.DialContext(ctx, "tcp", s.RedisConfig().Address())
+			},
+		}
+	}
+
+	return s.redisPool
+}
+
+func (s *serviceProvider) RedisClient() cacheClient.Client {
+	if s.redisClient == nil {
+		s.redisClient = redis.NewClient(s.RedisPool(), s.RedisConfig().ConnectionTimeout())
+	}
+
+	return s.redisClient
+}
+
+func (s *serviceProvider) Cache() cache.UserCache {
+	if s.cache == nil {
+		s.cache = userCache.NewCache(s.RedisClient())
+	}
+	return s.cache
 }

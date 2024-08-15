@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/BelyaevEI/microservices_auth/internal/client/db"
 	"github.com/BelyaevEI/microservices_auth/internal/model"
 	"github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
+	"github.com/BelyaevEI/platform_common/pkg/db"
 	sq "github.com/Masterminds/squirrel"
 )
 

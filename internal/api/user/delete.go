@@ -13,5 +13,6 @@ func (i *Implementation) DeleteUserByID(ctx context.Context, req *desc.DeleteReq
 	if err != nil {
 		return nil, err
 	}
+
 	return &emptypb.Empty{}, nil
 }
