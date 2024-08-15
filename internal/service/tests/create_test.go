@@ -126,7 +126,7 @@ func TestCreateUser(t *testing.T) {
 
 			userRepoMock := test.userRepositoryMock(mc)
 			cacheMock := test.cacheMock(mc)
-			txManagerMock := test.txManagerMock(func(ctx context.Context) error {
+			txManagerMock := test.txManagerMock(func(_ context.Context) error {
 				return nil
 			}, mc)
 			service := userService.NewService(userRepoMock, txManagerMock, cacheMock)
