@@ -15,6 +15,7 @@ type service struct {
 	consumer       kafka.Consumer
 }
 
+// NewService create instance for consumer
 func NewService(
 	userRepository repository.UserRepository,
 	consumer kafka.Consumer,

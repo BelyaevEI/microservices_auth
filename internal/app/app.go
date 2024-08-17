@@ -43,6 +43,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	return a, nil
 }
 
+// RunConsumerForCreateUser create user infinity
 func (a *App) RunConsumerForCreateUser(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 

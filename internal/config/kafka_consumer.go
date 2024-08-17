@@ -18,6 +18,7 @@ type kafkaConsumerConfig struct {
 	groupID string
 }
 
+// KafkaConsumerConfig new config
 type KafkaConsumerConfig interface {
 	Brokers() []string
 	GroupID() string
