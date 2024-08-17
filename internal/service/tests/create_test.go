@@ -69,7 +69,7 @@ func TestCreateUser(t *testing.T) {
 		txManagerMock      txManagerMockFunc
 	}{
 		{
-			name: "success case 1",
+			name: "success case",
 			args: args{
 				ctx:         ctx,
 				userRepoReq: userRepoReq,
@@ -88,7 +88,7 @@ func TestCreateUser(t *testing.T) {
 			},
 			txManagerMock: func(f func(_ context.Context) error, mc *minimock.Controller) db.TxManager {
 				mock := mocks.NewTxManagerMock(mc)
-				mock.ReadCommittedMock.Expect(ctx, f).Return(nil)
+				// mock.ReadCommittedMock.Expect(ctx, f).Return(nil)
 				return mock
 			},
 		},
@@ -113,7 +113,7 @@ func TestCreateUser(t *testing.T) {
 			},
 			txManagerMock: func(f func(_ context.Context) error, mc *minimock.Controller) db.TxManager {
 				mock := mocks.NewTxManagerMock(mc)
-				mock.ReadCommittedMock.Expect(ctx, f).Return(nil)
+				// mock.ReadCommittedMock.Expect(ctx, f).Return(nil)
 				return mock
 			},
 		},

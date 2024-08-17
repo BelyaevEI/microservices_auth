@@ -5,6 +5,8 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/BelyaevEI/microservices_auth/internal/config"
 	desc "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
@@ -39,6 +41,35 @@ func NewApp(ctx context.Context) (*App, error) {
 	}
 
 	return a, nil
+}
+
+func (a *App) RunConsumerForCreateUser(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+
+	err := a.serviceProvider.UserSaverConsumer(ctx).RunConsumer(ctx)
+	if err != nil {
+		log.Printf("failed to run consumer: %s", err.Error())
+	}
+
+	gracefulShutdown(ctx, cancel)
+	return nil
+}
+
+func gracefulShutdown(ctx context.Context, cancel context.CancelFunc) {
+	select {
+	case <-ctx.Done():
+		log.Println("terminating: context cancelled")
+	case <-waitSignal():
+		log.Println("terminating: via signal")
+	}
+
+	cancel()
+}
+
+func waitSignal() chan os.Signal {
+	sigterm := make(chan os.Signal, 1)
+	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
+	return sigterm
 }
 
 // Run runs the app.
