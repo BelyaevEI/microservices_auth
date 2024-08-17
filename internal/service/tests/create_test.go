@@ -86,7 +86,7 @@ func TestCreateUser(t *testing.T) {
 				mock.CreateUserMock.Expect(ctx, cacheUser).Return(nil)
 				return mock
 			},
-			txManagerMock: func(f func(_ context.Context) error, mc *minimock.Controller) db.TxManager {
+			txManagerMock: func(_ func(_ context.Context) error, mc *minimock.Controller) db.TxManager {
 				mock := mocks.NewTxManagerMock(mc)
 				// mock.ReadCommittedMock.Expect(ctx, f).Return(nil)
 				return mock
@@ -111,7 +111,7 @@ func TestCreateUser(t *testing.T) {
 				mock.CreateUserMock.Expect(ctx, cacheUser).Return(nil)
 				return mock
 			},
-			txManagerMock: func(f func(_ context.Context) error, mc *minimock.Controller) db.TxManager {
+			txManagerMock: func(_ func(_ context.Context) error, mc *minimock.Controller) db.TxManager {
 				mock := mocks.NewTxManagerMock(mc)
 				// mock.ReadCommittedMock.Expect(ctx, f).Return(nil)
 				return mock
