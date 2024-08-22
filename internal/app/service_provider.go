@@ -6,26 +6,32 @@ import (
 
 	"github.com/BelyaevEI/microservices_auth/internal/api/user"
 	"github.com/BelyaevEI/microservices_auth/internal/cache"
+	"github.com/BelyaevEI/microservices_auth/internal/client/kafka"
 	"github.com/BelyaevEI/platform_common/pkg/cache/redis"
 	"github.com/BelyaevEI/platform_common/pkg/closer"
 	"github.com/BelyaevEI/platform_common/pkg/db"
 	"github.com/BelyaevEI/platform_common/pkg/db/pg"
 	"github.com/BelyaevEI/platform_common/pkg/db/transaction"
+	"github.com/IBM/sarama"
 
 	userCache "github.com/BelyaevEI/microservices_auth/internal/cache/user"
+	kafkaConsumer "github.com/BelyaevEI/microservices_auth/internal/client/kafka/consumer"
 	"github.com/BelyaevEI/microservices_auth/internal/config"
 	"github.com/BelyaevEI/microservices_auth/internal/repository"
 	userRepository "github.com/BelyaevEI/microservices_auth/internal/repository/user"
 	"github.com/BelyaevEI/microservices_auth/internal/service"
+	"github.com/BelyaevEI/microservices_auth/internal/service/consumer"
+	userSaverConsumer "github.com/BelyaevEI/microservices_auth/internal/service/consumer/user_saver"
 	userService "github.com/BelyaevEI/microservices_auth/internal/service/user"
 	cacheClient "github.com/BelyaevEI/platform_common/pkg/cache"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
 type serviceProvider struct {
-	pgConfig    config.PGConfig
-	grpcConfig  config.GRPCConfig
-	redisConfig config.RedisConfig
+	pgConfig            config.PGConfig
+	grpcConfig          config.GRPCConfig
+	redisConfig         config.RedisConfig
+	kafkaConsumerConfig config.KafkaConsumerConfig
 
 	dbClient       db.Client
 	redisPool      *redigo.Pool
@@ -35,6 +41,11 @@ type serviceProvider struct {
 	userRepository repository.UserRepository
 	userService    service.UserService
 	userImpl       *user.Implementation
+
+	userSaverConsumer    consumer.Servicer
+	consumer             kafka.Consumer
+	consumerGroup        sarama.ConsumerGroup
+	consumerGroupHandler *kafkaConsumer.GroupHandler
 }
 
 func newServiceProvider() *serviceProvider {
@@ -162,4 +173,65 @@ func (s *serviceProvider) Cache() cache.UserCache {
 		s.cache = userCache.NewCache(s.RedisClient())
 	}
 	return s.cache
+}
+
+func (s *serviceProvider) UserSaverConsumer(ctx context.Context) consumer.Servicer {
+	if s.userSaverConsumer == nil {
+		s.userSaverConsumer = userSaverConsumer.NewService(
+			s.UserRepository(ctx),
+			s.Consumer(),
+		)
+	}
+
+	return s.userSaverConsumer
+}
+
+func (s *serviceProvider) Consumer() kafka.Consumer {
+	if s.consumer == nil {
+		s.consumer = kafkaConsumer.NewConsumer(
+			s.ConsumerGroup(),
+			s.ConsumerGroupHandler(),
+		)
+		closer.Add(s.consumer.Close)
+	}
+
+	return s.consumer
+}
+
+func (s *serviceProvider) ConsumerGroup() sarama.ConsumerGroup {
+	if s.consumerGroup == nil {
+		consumerGroup, err := sarama.NewConsumerGroup(
+			s.KafkaConsumerConfig().Brokers(),
+			s.KafkaConsumerConfig().GroupID(),
+			s.KafkaConsumerConfig().Config(),
+		)
+		if err != nil {
+			log.Fatalf("failed to create consumer group: %v", err)
+		}
+
+		s.consumerGroup = consumerGroup
+	}
+
+	return s.consumerGroup
+}
+
+func (s *serviceProvider) ConsumerGroupHandler() *kafkaConsumer.GroupHandler {
+	if s.consumerGroupHandler == nil {
+		s.consumerGroupHandler = kafkaConsumer.NewGroupHandler()
+	}
+
+	return s.consumerGroupHandler
+}
+
+func (s *serviceProvider) KafkaConsumerConfig() config.KafkaConsumerConfig {
+	if s.kafkaConsumerConfig == nil {
+		cfg, err := config.NewKafkaConsumerConfig()
+		if err != nil {
+			log.Fatalf("failed to get kafka consumer config: %s", err.Error())
+		}
+
+		s.kafkaConsumerConfig = cfg
+	}
+
+	return s.kafkaConsumerConfig
 }
