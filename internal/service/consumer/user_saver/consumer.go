@@ -8,7 +8,7 @@ import (
 	def "github.com/BelyaevEI/microservices_auth/internal/service/consumer"
 )
 
-var _ def.ConsumerService = (*service)(nil)
+var _ def.Servicer = (*service)(nil)
 
 type service struct {
 	userRepository repository.UserRepository

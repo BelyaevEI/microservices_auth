@@ -5,6 +5,6 @@ import (
 )
 
 // ConsumerService interface for consumer
-type ConsumerService interface {
+type Servicer interface {
 	RunConsumer(ctx context.Context) error
 }

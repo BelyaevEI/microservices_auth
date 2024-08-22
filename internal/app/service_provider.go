@@ -42,7 +42,7 @@ type serviceProvider struct {
 	userService    service.UserService
 	userImpl       *user.Implementation
 
-	userSaverConsumer    consumer.ConsumerService
+	userSaverConsumer    consumer.Servicer
 	consumer             kafka.Consumer
 	consumerGroup        sarama.ConsumerGroup
 	consumerGroupHandler *kafkaConsumer.GroupHandler
@@ -175,7 +175,7 @@ func (s *serviceProvider) Cache() cache.UserCache {
 	return s.cache
 }
 
-func (s *serviceProvider) UserSaverConsumer(ctx context.Context) consumer.ConsumerService {
+func (s *serviceProvider) UserSaverConsumer(ctx context.Context) consumer.Servicer {
 	if s.userSaverConsumer == nil {
 		s.userSaverConsumer = userSaverConsumer.NewService(
 			s.UserRepository(ctx),
