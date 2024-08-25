@@ -6,10 +6,11 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/BelyaevEI/microservices_auth/internal/config"
-	desc "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
+	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 	"github.com/BelyaevEI/platform_common/pkg/closer"
 
 	"google.golang.org/grpc"
@@ -45,18 +46,16 @@ func NewApp(ctx context.Context) (*App, error) {
 
 // RunConsumerForCreateUser create user infinity
 func (a *App) RunConsumerForCreateUser(ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
 
 	err := a.serviceProvider.UserSaverConsumer(ctx).RunConsumer(ctx)
 	if err != nil {
 		log.Printf("failed to run consumer: %s", err.Error())
 	}
 
-	gracefulShutdown(ctx, cancel)
 	return nil
 }
 
-func gracefulShutdown(ctx context.Context, cancel context.CancelFunc) {
+func gracefulShutdown(ctx context.Context, cancel context.CancelFunc, wg *sync.WaitGroup) {
 	select {
 	case <-ctx.Done():
 		log.Println("terminating: context cancelled")
@@ -65,6 +64,9 @@ func gracefulShutdown(ctx context.Context, cancel context.CancelFunc) {
 	}
 
 	cancel()
+	if wg != nil {
+		wg.Wait()
+	}
 }
 
 func waitSignal() chan os.Signal {
@@ -74,12 +76,37 @@ func waitSignal() chan os.Signal {
 }
 
 // Run runs the app.
-func (a *App) Run() error {
+func (a *App) Run(ctx context.Context) error {
 	defer func() {
 		closer.CloseAll()
 		closer.Wait()
 	}()
 
+	ctx, cancel := context.WithCancel(ctx)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		err := a.runGRPCServer()
+		if err != nil {
+			log.Fatalf("failed to run grpc server: %v", err)
+		}
+
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		err := a.RunConsumerForCreateUser(ctx)
+		if err != nil {
+			log.Fatalf("failed to consume saver: %s", err.Error())
+		}
+	}()
+
+	gracefulShutdown(ctx, cancel, wg)
 	return a.runGRPCServer()
 }
 
@@ -125,7 +152,7 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 
 	reflection.Register(a.grpcServer)
 
-	desc.RegisterAuthV1Server(a.grpcServer, a.serviceProvider.UserImpl(ctx))
+	desc.RegisterUserV1Server(a.grpcServer, a.serviceProvider.UserImpl(ctx))
 
 	return nil
 }

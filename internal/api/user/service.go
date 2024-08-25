@@ -2,12 +2,12 @@ package user
 
 import (
 	"github.com/BelyaevEI/microservices_auth/internal/service"
-	desc "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
+	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 )
 
 // Implementation represents a user API implementation.
 type Implementation struct {
-	desc.UnimplementedAuthV1Server
+	desc.UnimplementedUserV1Server
 	userService service.UserService
 }
 

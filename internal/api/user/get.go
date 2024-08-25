@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/BelyaevEI/microservices_auth/internal/converter"
-	desc "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
+	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 )
 
 // GetUserByID gets a user.

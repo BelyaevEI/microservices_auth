@@ -12,7 +12,6 @@ import (
 	"github.com/BelyaevEI/platform_common/pkg/db"
 	"github.com/BelyaevEI/platform_common/pkg/db/pg"
 	"github.com/BelyaevEI/platform_common/pkg/db/transaction"
-	"github.com/IBM/sarama"
 
 	userCache "github.com/BelyaevEI/microservices_auth/internal/cache/user"
 	kafkaConsumer "github.com/BelyaevEI/microservices_auth/internal/client/kafka/consumer"
@@ -24,6 +23,8 @@ import (
 	userSaverConsumer "github.com/BelyaevEI/microservices_auth/internal/service/consumer/user_saver"
 	userService "github.com/BelyaevEI/microservices_auth/internal/service/user"
 	cacheClient "github.com/BelyaevEI/platform_common/pkg/cache"
+
+	"github.com/IBM/sarama"
 	redigo "github.com/gomodule/redigo/redis"
 )
 

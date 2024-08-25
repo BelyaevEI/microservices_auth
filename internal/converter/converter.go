@@ -2,7 +2,7 @@ package converter
 
 import (
 	"github.com/BelyaevEI/microservices_auth/internal/model"
-	desc "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
+	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
