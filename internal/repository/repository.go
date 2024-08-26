@@ -13,3 +13,8 @@ type UserRepository interface {
 	UpdateUserByID(ctx context.Context, id int64, userUpdate *model.UserUpdate) error
 	DeleteUserByID(ctx context.Context, id int64) error
 }
+
+type AuthRepository interface {
+	Get(ctx context.Context, id int64) (*model.User, error)
+	GetPassword(ctx context.Context, id int64) (string, error)
+}

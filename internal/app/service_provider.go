@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/BelyaevEI/microservices_auth/internal/api/auth"
 	"github.com/BelyaevEI/microservices_auth/internal/api/user"
 	"github.com/BelyaevEI/microservices_auth/internal/cache"
 	"github.com/BelyaevEI/microservices_auth/internal/client/kafka"
@@ -17,8 +18,10 @@ import (
 	kafkaConsumer "github.com/BelyaevEI/microservices_auth/internal/client/kafka/consumer"
 	"github.com/BelyaevEI/microservices_auth/internal/config"
 	"github.com/BelyaevEI/microservices_auth/internal/repository"
+	authRepository "github.com/BelyaevEI/microservices_auth/internal/repository/auth"
 	userRepository "github.com/BelyaevEI/microservices_auth/internal/repository/user"
 	"github.com/BelyaevEI/microservices_auth/internal/service"
+	authService "github.com/BelyaevEI/microservices_auth/internal/service/auth"
 	"github.com/BelyaevEI/microservices_auth/internal/service/consumer"
 	userSaverConsumer "github.com/BelyaevEI/microservices_auth/internal/service/consumer/user_saver"
 	userService "github.com/BelyaevEI/microservices_auth/internal/service/user"
@@ -33,6 +36,7 @@ type serviceProvider struct {
 	grpcConfig          config.GRPCConfig
 	redisConfig         config.RedisConfig
 	kafkaConsumerConfig config.KafkaConsumerConfig
+	jwtConfig           config.JWTConfig
 
 	dbClient       db.Client
 	redisPool      *redigo.Pool
@@ -40,8 +44,11 @@ type serviceProvider struct {
 	cache          cache.UserCache
 	txManager      db.TxManager
 	userRepository repository.UserRepository
+	authRepository repository.AuthRepository
 	userService    service.UserService
+	authService    service.AuthService
 	userImpl       *user.Implementation
+	authImpl       *auth.Implementation
 
 	userSaverConsumer    consumer.Servicer
 	consumer             kafka.Consumer
@@ -59,6 +66,43 @@ func (s *serviceProvider) UserImpl(ctx context.Context) *user.Implementation {
 	}
 
 	return s.userImpl
+}
+
+func (s *serviceProvider) AuthImpl(ctx context.Context) *auth.Implementation {
+	if s.authImpl == nil {
+		s.authImpl = auth.NewImplementation(s.AuthService(ctx))
+	}
+
+	return s.authImpl
+}
+
+func (s *serviceProvider) AuthService(ctx context.Context) service.AuthService {
+	if s.authService == nil {
+		s.authService = authService.NewService(
+			s.AuthRepository(ctx),
+			s.Cache(),
+			s.TxManager(ctx),
+			s.JWTConfig().RefreshSecretKey(),
+			s.JWTConfig().RefreshExpiration(),
+			s.JWTConfig().AccessSecretKey(),
+			s.JWTConfig().AccessExpiration(),
+		)
+	}
+
+	return s.authService
+}
+
+func (s *serviceProvider) JWTConfig() config.JWTConfig {
+	if s.jwtConfig == nil {
+		cfg, err := config.NewJWTConfig()
+		if err != nil {
+			log.Fatalf("failed to get jwt config: %s", err.Error())
+		}
+
+		s.jwtConfig = cfg
+	}
+
+	return s.jwtConfig
 }
 
 func (s *serviceProvider) PGConfig() config.PGConfig {
@@ -120,6 +164,14 @@ func (s *serviceProvider) UserRepository(ctx context.Context) repository.UserRep
 	}
 
 	return s.userRepository
+}
+
+func (s *serviceProvider) AuthRepository(ctx context.Context) repository.AuthRepository {
+	if s.authRepository == nil {
+		s.authRepository = authRepository.NewRepository(s.DBClient(ctx))
+	}
+
+	return s.authRepository
 }
 
 func (s *serviceProvider) UserService(ctx context.Context) service.UserService {
