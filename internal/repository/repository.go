@@ -14,6 +14,7 @@ type UserRepository interface {
 	DeleteUserByID(ctx context.Context, id int64) error
 }
 
+// AuthRepository represents a repository for auth entities.
 type AuthRepository interface {
 	Get(ctx context.Context, id int64) (*model.User, error)
 	GetPassword(ctx context.Context, id int64) (string, error)
