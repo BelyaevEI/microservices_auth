@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/BelyaevEI/microservices_auth/internal/api/access"
 	"github.com/BelyaevEI/microservices_auth/internal/api/auth"
 	"github.com/BelyaevEI/microservices_auth/internal/api/user"
 	"github.com/BelyaevEI/microservices_auth/internal/cache"
@@ -21,6 +22,7 @@ import (
 	authRepository "github.com/BelyaevEI/microservices_auth/internal/repository/auth"
 	userRepository "github.com/BelyaevEI/microservices_auth/internal/repository/user"
 	"github.com/BelyaevEI/microservices_auth/internal/service"
+	accessService "github.com/BelyaevEI/microservices_auth/internal/service/access"
 	authService "github.com/BelyaevEI/microservices_auth/internal/service/auth"
 	"github.com/BelyaevEI/microservices_auth/internal/service/consumer"
 	userSaverConsumer "github.com/BelyaevEI/microservices_auth/internal/service/consumer/user_saver"
@@ -47,8 +49,10 @@ type serviceProvider struct {
 	authRepository repository.AuthRepository
 	userService    service.UserService
 	authService    service.AuthService
+	accessService  service.AccessService
 	userImpl       *user.Implementation
 	authImpl       *auth.Implementation
+	accessImpl     *access.Implementation
 
 	userSaverConsumer    consumer.Servicer
 	consumer             kafka.Consumer
@@ -76,20 +80,12 @@ func (s *serviceProvider) AuthImpl(ctx context.Context) *auth.Implementation {
 	return s.authImpl
 }
 
-func (s *serviceProvider) AuthService(ctx context.Context) service.AuthService {
-	if s.authService == nil {
-		s.authService = authService.NewService(
-			s.AuthRepository(ctx),
-			s.Cache(),
-			s.TxManager(ctx),
-			s.JWTConfig().RefreshSecretKey(),
-			s.JWTConfig().RefreshExpiration(),
-			s.JWTConfig().AccessSecretKey(),
-			s.JWTConfig().AccessExpiration(),
-		)
+func (s *serviceProvider) AccessImpl(ctx context.Context) *access.Implementation {
+	if s.accessImpl == nil {
+		s.accessImpl = access.NewImplementation(s.AccessService(ctx))
 	}
 
-	return s.authService
+	return s.accessImpl
 }
 
 func (s *serviceProvider) JWTConfig() config.JWTConfig {
@@ -184,6 +180,35 @@ func (s *serviceProvider) UserService(ctx context.Context) service.UserService {
 	}
 
 	return s.userService
+}
+
+func (s *serviceProvider) AuthService(ctx context.Context) service.AuthService {
+	if s.authService == nil {
+		s.authService = authService.NewService(
+			s.AuthRepository(ctx),
+			s.Cache(),
+			s.TxManager(ctx),
+			s.JWTConfig().RefreshSecretKey(),
+			s.JWTConfig().RefreshExpiration(),
+			s.JWTConfig().AccessSecretKey(),
+			s.JWTConfig().AccessExpiration(),
+		)
+	}
+
+	return s.authService
+}
+
+func (s *serviceProvider) AccessService(ctx context.Context) service.AccessService {
+	if s.accessService == nil {
+		s.accessService = accessService.NewService(
+			s.Cache(),
+			s.TxManager(ctx),
+			s.JWTConfig().AuthPrefix(),
+			s.JWTConfig().AccessSecretKey(),
+		)
+	}
+
+	return s.accessService
 }
 
 func (s *serviceProvider) RedisConfig() config.RedisConfig {
