@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"flag"
 	"log"
 	"net"
 	"os"
@@ -10,11 +11,13 @@ import (
 	"syscall"
 
 	"github.com/BelyaevEI/microservices_auth/internal/config"
+	"github.com/BelyaevEI/microservices_auth/internal/interceptor"
 	descAccess "github.com/BelyaevEI/microservices_auth/pkg/access_v1"
 	descAuth "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
 	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 	"github.com/BelyaevEI/platform_common/pkg/closer"
 
+	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
@@ -22,10 +25,12 @@ import (
 
 var (
 	configPath string
+	logLevel   = flag.String("l", "info", "log level")
 )
 
 func init() {
 	configPath = os.Getenv("CONFIG_PATH")
+	flag.Parse()
 }
 
 // App represents the app.
@@ -150,7 +155,8 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
 
-	a.grpcServer = grpc.NewServer(grpc.Creds(creds))
+	a.grpcServer = grpc.NewServer(grpc.Creds(creds),
+		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(interceptor.LogInterceptor)))
 
 	reflection.Register(a.grpcServer)
 
