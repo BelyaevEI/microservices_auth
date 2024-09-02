@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// LogInterceptor interceptor for logger
 func LogInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	now := time.Now()
 
