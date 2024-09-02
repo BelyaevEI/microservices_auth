@@ -12,12 +12,16 @@ import (
 
 	"github.com/BelyaevEI/microservices_auth/internal/config"
 	"github.com/BelyaevEI/microservices_auth/internal/interceptor"
+	"github.com/BelyaevEI/microservices_auth/internal/logger"
 	descAccess "github.com/BelyaevEI/microservices_auth/pkg/access_v1"
 	descAuth "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
 	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 	"github.com/BelyaevEI/platform_common/pkg/closer"
 
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/natefinch/lumberjack"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
@@ -122,6 +126,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initConfig,
 		a.initServiceProvider,
 		a.initGRPCServer,
+		a.initLogger,
 	}
 
 	for _, f := range inits {
@@ -181,4 +186,46 @@ func (a *App) runGRPCServer() error {
 	}
 
 	return nil
+}
+
+// initLogger initialization entity logger
+func (a *App) initLogger(_ context.Context) error {
+	logger.Init(getCore(getAtomicLevel()))
+
+	return nil
+}
+
+func getCore(level zap.AtomicLevel) zapcore.Core {
+	stdout := zapcore.AddSync(os.Stdout)
+
+	file := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   "logs/app.log",
+		MaxSize:    10, // megabytes
+		MaxBackups: 3,
+		MaxAge:     7, // days
+	})
+
+	productionCfg := zap.NewProductionEncoderConfig()
+	productionCfg.TimeKey = "timestamp"
+	productionCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	developmentCfg := zap.NewDevelopmentEncoderConfig()
+	developmentCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+	consoleEncoder := zapcore.NewConsoleEncoder(developmentCfg)
+	fileEncoder := zapcore.NewJSONEncoder(productionCfg)
+
+	return zapcore.NewTee(
+		zapcore.NewCore(consoleEncoder, stdout, level),
+		zapcore.NewCore(fileEncoder, file, level),
+	)
+}
+
+func getAtomicLevel() zap.AtomicLevel {
+	var level zapcore.Level
+	if err := level.Set(*logLevel); err != nil {
+		log.Fatalf("failed to set log level: %v", err)
+	}
+
+	return zap.NewAtomicLevelAt(level)
 }
