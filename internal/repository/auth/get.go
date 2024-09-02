@@ -30,5 +30,6 @@ func (r *repo) Get(ctx context.Context, id int64) (*model.User, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return converter.ToUserFromRepo(&user), nil
 }
