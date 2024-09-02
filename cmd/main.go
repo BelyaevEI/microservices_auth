@@ -16,14 +16,7 @@ func main() {
 		log.Fatalf("failed to init app: %s", err.Error())
 	}
 
-	go func() {
-		err = a.RunConsumerForCreateUser(ctx)
-		if err != nil {
-			log.Fatalf("failed to consume saver: %s", err.Error())
-		}
-	}()
-
-	err = a.Run()
+	err = a.Run(ctx)
 	if err != nil {
 		log.Fatalf("failed to run app: %s", err.Error())
 	}

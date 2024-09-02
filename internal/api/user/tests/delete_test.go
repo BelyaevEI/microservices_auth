@@ -8,7 +8,8 @@ import (
 	"github.com/BelyaevEI/microservices_auth/internal/api/user"
 	"github.com/BelyaevEI/microservices_auth/internal/service"
 	serviceMocks "github.com/BelyaevEI/microservices_auth/internal/service/mocks"
-	desc "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
+	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
+
 	"github.com/brianvoe/gofakeit/v6"
 	"github.com/gojuno/minimock/v3"
 	"github.com/stretchr/testify/require"

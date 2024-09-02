@@ -46,3 +46,9 @@ type UserUpdate struct {
 	Email *string
 	Role  Role
 }
+
+// UserLogin represents a user login entity with ID and Password fields.
+type UserLogin struct {
+	ID       int64
+	Password string
+}

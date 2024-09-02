@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/BelyaevEI/microservices_auth/internal/model"
-	"github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
+	"github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 	"github.com/BelyaevEI/platform_common/pkg/db"
 	sq "github.com/Masterminds/squirrel"
 )
@@ -23,7 +23,7 @@ func (r *repo) UpdateUserByID(ctx context.Context, id int64, userUpdate *model.U
 		builderUpdate = builderUpdate.
 			Set(emailColumn, userUpdate.Email)
 	}
-	if userUpdate.Role != model.Role(auth_v1.Role_UNKNOWN) {
+	if userUpdate.Role != model.Role(user_v1.Role_UNKNOWN) {
 		builderUpdate = builderUpdate.
 			Set(roleColumn, userUpdate.Role)
 	}
