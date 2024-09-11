@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/BelyaevEI/microservices_auth/internal/config"
 	"github.com/BelyaevEI/microservices_auth/internal/interceptor"
@@ -42,8 +43,9 @@ func init() {
 
 // App represents the app.
 type App struct {
-	serviceProvider *serviceProvider
-	grpcServer      *grpc.Server
+	serviceProvider  *serviceProvider
+	grpcServer       *grpc.Server
+	prometheusServer *http.Server
 }
 
 // NewApp creates a new app.
@@ -140,6 +142,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initGRPCServer,
 		a.initLogger,
 		a.initMetrics,
+		a.initPrometheusServer,
 	}
 
 	for _, f := range inits {
@@ -175,6 +178,18 @@ func (a *App) initServiceProvider(_ context.Context) error {
 	return nil
 }
 
+func (a *App) initPrometheusServer(ctx context.Context) error {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	a.prometheusServer = &http.Server{
+		Addr:              a.serviceProvider.PrometheusConfig().Address(),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	return nil
+}
 func (a *App) initGRPCServer(ctx context.Context) error {
 
 	creds, err := credentials.NewServerTLSFromFile("../service.pem", "../service.key")
@@ -253,17 +268,9 @@ func getAtomicLevel() zap.AtomicLevel {
 }
 
 func (a *App) runPrometheus() error {
-	mux := http.NewServeMux()
-	mux.Handle("/metrics", promhttp.Handler())
-
-	prometheusServer := &http.Server{
-		Addr:    "localhost:2112",
-		Handler: mux,
-	}
-
 	log.Printf("Prometheus server is running on %s", "localhost:2112")
 
-	err := prometheusServer.ListenAndServe()
+	err := a.prometheusServer.ListenAndServe()
 	if err != nil {
 		return err
 	}

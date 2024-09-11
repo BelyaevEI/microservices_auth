@@ -39,6 +39,7 @@ type serviceProvider struct {
 	redisConfig         config.RedisConfig
 	kafkaConsumerConfig config.KafkaConsumerConfig
 	jwtConfig           config.JWTConfig
+	prometheusConfig    config.PrometheusConfig
 
 	dbClient       db.Client
 	redisPool      *redigo.Pool
@@ -117,6 +118,20 @@ func (s *serviceProvider) PGConfig() config.PGConfig {
 	}
 
 	return s.pgConfig
+}
+
+// PrometheusConfig reading from enviroment variables in structure
+func (s *serviceProvider) PrometheusConfig() config.PrometheusConfig {
+	if s.prometheusConfig == nil {
+		cfg, err := config.NewPrometheusConfig()
+		if err != nil {
+			log.Fatalf("failed to get prometheus config: %s", err.Error())
+		}
+
+		s.prometheusConfig = cfg
+	}
+
+	return s.prometheusConfig
 }
 
 // GRPCConfig reading from enviroment variables in structure

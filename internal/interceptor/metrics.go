@@ -8,6 +8,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+// MetricsInterceptor interceptor for metric
 func MetricsInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	metric.IncRequestCounter()
 
