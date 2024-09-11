@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -13,10 +14,12 @@ import (
 	"github.com/BelyaevEI/microservices_auth/internal/config"
 	"github.com/BelyaevEI/microservices_auth/internal/interceptor"
 	"github.com/BelyaevEI/microservices_auth/internal/logger"
+	"github.com/BelyaevEI/microservices_auth/internal/metric"
 	descAccess "github.com/BelyaevEI/microservices_auth/pkg/access_v1"
 	descAuth "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
 	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 	"github.com/BelyaevEI/platform_common/pkg/closer"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/natefinch/lumberjack"
@@ -96,7 +99,7 @@ func (a *App) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(3)
 
 	go func() {
 		defer wg.Done()
@@ -117,6 +120,15 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 
+	go func() {
+		defer wg.Done()
+
+		err := a.runPrometheus()
+		if err != nil {
+			log.Fatalf("failed to run prometheus server: %s", err.Error())
+		}
+	}()
+
 	gracefulShutdown(ctx, cancel, wg)
 	return a.runGRPCServer()
 }
@@ -127,6 +139,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initServiceProvider,
 		a.initGRPCServer,
 		a.initLogger,
+		a.initMetrics,
 	}
 
 	for _, f := range inits {
@@ -148,6 +161,15 @@ func (a *App) initConfig(_ context.Context) error {
 	return nil
 }
 
+func (a *App) initMetrics(ctx context.Context) error {
+	err := metric.Init(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (a *App) initServiceProvider(_ context.Context) error {
 	a.serviceProvider = newServiceProvider()
 	return nil
@@ -161,7 +183,7 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 	}
 
 	a.grpcServer = grpc.NewServer(grpc.Creds(creds),
-		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(interceptor.LogInterceptor)))
+		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(interceptor.LogInterceptor, interceptor.MetricsInterceptor)))
 
 	reflection.Register(a.grpcServer)
 
@@ -228,4 +250,23 @@ func getAtomicLevel() zap.AtomicLevel {
 	}
 
 	return zap.NewAtomicLevelAt(level)
+}
+
+func (a *App) runPrometheus() error {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	prometheusServer := &http.Server{
+		Addr:    "localhost:2112",
+		Handler: mux,
+	}
+
+	log.Printf("Prometheus server is running on %s", "localhost:2112")
+
+	err := prometheusServer.ListenAndServe()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
