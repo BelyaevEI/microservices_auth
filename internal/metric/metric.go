@@ -66,7 +66,7 @@ func IncResponseCounter(status string, method string) {
 	metrics.responseCounter.WithLabelValues(status, method).Inc()
 }
 
-// HistogramResponseTimeObserve
+// HistogramResponseTimeObserve metric
 func HistogramResponseTimeObserve(status string, time float64) {
 	metrics.histogramResponseTime.WithLabelValues(status).Observe(time)
 }
