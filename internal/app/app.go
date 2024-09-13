@@ -2,19 +2,30 @@ package app
 
 import (
 	"context"
+	"flag"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/BelyaevEI/microservices_auth/internal/config"
+	"github.com/BelyaevEI/microservices_auth/internal/interceptor"
+	"github.com/BelyaevEI/microservices_auth/internal/logger"
+	"github.com/BelyaevEI/microservices_auth/internal/metric"
 	descAccess "github.com/BelyaevEI/microservices_auth/pkg/access_v1"
 	descAuth "github.com/BelyaevEI/microservices_auth/pkg/auth_v1"
 	desc "github.com/BelyaevEI/microservices_auth/pkg/user_v1"
 	"github.com/BelyaevEI/platform_common/pkg/closer"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	"github.com/natefinch/lumberjack"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
@@ -22,16 +33,19 @@ import (
 
 var (
 	configPath string
+	logLevel   = flag.String("l", "info", "log level")
 )
 
 func init() {
 	configPath = os.Getenv("CONFIG_PATH")
+	flag.Parse()
 }
 
 // App represents the app.
 type App struct {
-	serviceProvider *serviceProvider
-	grpcServer      *grpc.Server
+	serviceProvider  *serviceProvider
+	grpcServer       *grpc.Server
+	prometheusServer *http.Server
 }
 
 // NewApp creates a new app.
@@ -87,7 +101,7 @@ func (a *App) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 
 	wg := &sync.WaitGroup{}
-	wg.Add(2)
+	wg.Add(3)
 
 	go func() {
 		defer wg.Done()
@@ -108,6 +122,15 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 
+	go func() {
+		defer wg.Done()
+
+		err := a.runPrometheus()
+		if err != nil {
+			log.Fatalf("failed to run prometheus server: %s", err.Error())
+		}
+	}()
+
 	gracefulShutdown(ctx, cancel, wg)
 	return a.runGRPCServer()
 }
@@ -117,6 +140,9 @@ func (a *App) initDeps(ctx context.Context) error {
 		a.initConfig,
 		a.initServiceProvider,
 		a.initGRPCServer,
+		a.initLogger,
+		a.initMetrics,
+		a.initPrometheusServer,
 	}
 
 	for _, f := range inits {
@@ -138,11 +164,32 @@ func (a *App) initConfig(_ context.Context) error {
 	return nil
 }
 
+func (a *App) initMetrics(ctx context.Context) error {
+	err := metric.Init(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (a *App) initServiceProvider(_ context.Context) error {
 	a.serviceProvider = newServiceProvider()
 	return nil
 }
 
+func (a *App) initPrometheusServer(_ context.Context) error {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	a.prometheusServer = &http.Server{
+		Addr:              a.serviceProvider.PrometheusConfig().Address(),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	return nil
+}
 func (a *App) initGRPCServer(ctx context.Context) error {
 
 	creds, err := credentials.NewServerTLSFromFile("../service.pem", "../service.key")
@@ -150,7 +197,8 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 		log.Fatalf("failed to load TLS keys: %v", err)
 	}
 
-	a.grpcServer = grpc.NewServer(grpc.Creds(creds))
+	a.grpcServer = grpc.NewServer(grpc.Creds(creds),
+		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(interceptor.LogInterceptor, interceptor.MetricsInterceptor)))
 
 	reflection.Register(a.grpcServer)
 
@@ -170,6 +218,59 @@ func (a *App) runGRPCServer() error {
 	}
 
 	err = a.grpcServer.Serve(list)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// initLogger initialization entity logger
+func (a *App) initLogger(_ context.Context) error {
+	logger.Init(getCore(getAtomicLevel()))
+
+	return nil
+}
+
+func getCore(level zap.AtomicLevel) zapcore.Core {
+	stdout := zapcore.AddSync(os.Stdout)
+
+	file := zapcore.AddSync(&lumberjack.Logger{
+		Filename:   "logs/app.log",
+		MaxSize:    10, // megabytes
+		MaxBackups: 3,
+		MaxAge:     7, // days
+	})
+
+	productionCfg := zap.NewProductionEncoderConfig()
+	productionCfg.TimeKey = "timestamp"
+	productionCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	developmentCfg := zap.NewDevelopmentEncoderConfig()
+	developmentCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+	consoleEncoder := zapcore.NewConsoleEncoder(developmentCfg)
+	fileEncoder := zapcore.NewJSONEncoder(productionCfg)
+
+	return zapcore.NewTee(
+		zapcore.NewCore(consoleEncoder, stdout, level),
+		zapcore.NewCore(fileEncoder, file, level),
+	)
+}
+
+func getAtomicLevel() zap.AtomicLevel {
+	var level zapcore.Level
+	if err := level.Set(*logLevel); err != nil {
+		log.Fatalf("failed to set log level: %v", err)
+	}
+
+	return zap.NewAtomicLevelAt(level)
+}
+
+func (a *App) runPrometheus() error {
+	log.Printf("Prometheus server is running on %s", "localhost:2112")
+
+	err := a.prometheusServer.ListenAndServe()
 	if err != nil {
 		return err
 	}
